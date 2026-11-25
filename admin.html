@@ -7,11 +7,12 @@
 <title>MyPerCo – admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="shared.css">
 </head>
 <body>
 <header>
-  <div class="logo">MyPerCo<small>admin</small></div>
+  <a class="logo" href="index.html"><img src="img/logo-mark.svg" alt=""><span>MyPerCo<small>admin</small></span></a>
 </header>
 <main id="view"></main>
 <dialog id="dlg"></dialog>
@@ -43,7 +44,7 @@ async function admin() {
     const needs = ['Needs assignment', 'Declined'].includes(b.status) || stale(b);
     return `<div class="box"><b>${esc(b.client_name)}</b> · ${esc(b.client_phone)} · ${planName(b)} ${esc(b.format)} · ${esc(b.location_mode)} · ${esc(b.area)}
     <p class="meta">First session ${dt(b.start_at)} · Trainer: ${esc(tn(b.trainer_id))} · ${inr(b.price)}${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} used` : ''}${Number(b.commission_amt) ? ` · our cut ${inr(b.commission_amt)} · trainer payout ${inr(b.payout_amt)} (${esc(b.payout_status)})` : ''}</p>
-    <p class="st ${b.status}">${b.status}${stale(b) ? ' · no reply for 24h' : ''} <span class="${b.payment_status}">· Payment ${b.payment_status}</span></p>
+    ${healthHtml(b.waiver_json ? JSON.parse(b.waiver_json) : null)}<p class="st ${b.status}">${b.status}${stale(b) ? ' · no reply for 24h' : ''} <span class="${b.payment_status}">· Payment ${b.payment_status}</span></p>
     ${b.payment_status === 'Unpaid' && b.price && !['Cancelled', 'Declined'].includes(b.status) ? `<button class="s" onclick="money('${b.id}','paid')">Mark paid</button> ` : ''}
     ${b.payment_status === 'Paid' && b.payout_status === 'Pending' && b.status !== 'Cancelled' ? `<button class="s" onclick="money('${b.id}','payout')">Mark trainer paid out</button> ` : ''}
     ${b.status === 'Cancelled' && b.payment_status === 'Paid' ? `<b>Refund due ${inr(b.refund_amt)}</b> <button class="s" onclick="money('${b.id}','refunded')">Mark refunded</button>` : ''}

@@ -6,11 +6,12 @@
 <title>MyPerCo – my personal coach</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="shared.css">
 </head>
 <body>
 <header>
-  <div class="logo">MyPerCo<small>my personal coach</small></div>
+  <a class="logo" href="index.html"><img src="img/logo-mark.svg" alt=""><span>MyPerCo<small>my personal coach</small></span></a>
   <nav id="nav"><button data-v="find">Find a trainer</button><button data-v="mine">My bookings</button><a href="trainer.html">For trainers</a></nav>
 </header>
 <main id="view"></main>
@@ -18,15 +19,36 @@
 <div id="toast" role="status"></div>
 <script src="shared.js"></script>
 <script>
-const WAIVER = `<p><b>MyPerCo client waiver and release (${'DRAFT'} – to be reviewed by a lawyer)</b></p>
-<p><b>1. Health declaration.</b> I confirm I am at least 18, in good health, and have no medical condition that makes training unsafe, or I have told my trainer about it and have medical clearance. I will stop and tell my trainer if I feel pain, dizziness or discomfort.</p>
-<p><b>2. Assumption of risk.</b> I understand exercise carries risk of injury, including strains, falls, equipment-related injury and, rarely, serious medical events. I take part voluntarily and at my own risk.</p>
-<p><b>3. Release.</b> To the fullest extent allowed by law, I release MyPerCo, its operators and the trainer from claims for injury, loss or damage arising from sessions, except where caused by gross negligence or wilful misconduct.</p>
-<p><b>4. Emergency.</b> I allow the trainer to call emergency services and my emergency contact if needed.</p>
-<p><b>5. Trainers are independent.</b> Trainers are independent professionals vetted by MyPerCo, not employees. Sessions at homes, parks or online take place at my own location and risk.</p>
-<p><b>6. Conduct and policies.</b> I will behave respectfully, and I accept the cancellation and package terms shown at booking. My phone number is shared with my trainer only after the booking is accepted.</p>
-<p><b>7. Law.</b> Indian law applies, with courts in Hyderabad.</p>`;
-function showWaiver() { $('#dlg').innerHTML = WAIVER + `<p><button class="p" onclick="$('#dlg').close()">Close</button></p>`; $('#dlg').showModal(); }
+const CONSENT = `I, the undersigned, confirm that the information I have provided is accurate to the best of my knowledge. I understand that personal training can be physically demanding and may involve periods of intense exercise. I agree to tell my trainer immediately about any discomfort, pain or change in my health during a session. I acknowledge that exercise carries inherent risks and I take part voluntarily and assume responsibility for my own actions and their consequences. I understand that MyPerCo, its management and its independent trainers are not responsible for any accident or injury during sessions, whether at a gym or studio, at my home or park, or online, except where caused by gross negligence or wilful misconduct. I am 18 or older, and I allow my trainer to contact my emergency contact and emergency services if needed. My health details are shared only with my assigned trainer and MyPerCo admin.`;
+function waiverStep(id, base) {
+  const sel = (i, o) => `<select id="${i}" class="w">${o.map(x => `<option>${esc(x)}</option>`).join('')}</select>`;
+  $('#dlg').innerHTML = `<h2 style="margin-top:0">Pre-exercise waiver</h2><p class="meta">Your trainer sees this to train you safely.</p><form id="wf">
+  <div class="grid"><div><label for="wd">Date of birth</label><input id="wd" type="date" class="w" required></div>
+  <div><label for="wg">Gender</label>${sel('wg', ['Female', 'Male', 'Other', 'Prefer not to say'])}</div></div>
+  <label for="we">Emergency contact (name and number)</label><input id="we" class="w" required>
+  <label>Have you ever been diagnosed with, or experienced, any of these?</label>${checks('wc', COND)}
+  <input id="wo" class="w" placeholder="Any other medical conditions">
+  <label for="wm">Medications, supplements or over-the-counter drugs (if any)</label><textarea id="wm" rows="2"></textarea>
+  <label for="wi">Recent injuries or surgeries (if any)</label><textarea id="wi" rows="2"></textarea>
+  <div class="grid"><div><label for="wf2">Days per week you exercise (last 6 months)</label>${sel('wf2', ['0', '1', '2', '3', '4', '5', '6', '7'])}</div>
+  <div><label for="wl">Current fitness level (1 sedentary – 10 very active)</label>${sel('wl', ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'])}</div></div>
+  <label for="wx">Training experience (HIIT or similar), if any</label><textarea id="wx" rows="2"></textarea>
+  <div class="grid"><div><label for="ws">Average sleep</label>${sel('ws', ['7–8 hours', 'Under 7 hours', 'Over 8 hours'])}</div>
+  <div><label for="wt">Dietary restrictions or preferences</label><input id="wt" class="w"></div></div>
+  <h3>Informed consent</h3><p style="font-size:14px">${CONSENT}</p>
+  <label for="wn">Type your full name as signature</label><input id="wn" class="w sig" value="${esc(base.client_name)}" required>
+  <label style="font-weight:400"><input type="checkbox" id="wa" required> I have read and agree to the above</label>
+  <p style="display:flex;gap:10px;margin-top:18px"><button class="p" type="submit">Agree and send request</button><button class="s" type="button" onclick="$('#dlg').close()">Cancel</button></p></form>`;
+  $('#wf').onsubmit = async e => {
+    e.preventDefault();
+    const waiver = { dob: val('wd'), gender: val('wg'), emergency: val('we'), conditions: picks('wc'), other_conditions: val('wo'), meds: val('wm'), injuries: val('wi'), freq: val('wf2'), fitness: val('wl'), experience: val('wx'), sleep: val('ws'), diet: val('wt'), signed_name: val('wn'), signed_at: new Date().toISOString(), agree: $('#wa').checked };
+    const r = await api('createBooking', { ...base, waiver });
+    creds.cphone = base.client_phone;
+    $('#dlg').innerHTML = `<h2 style="margin-top:0">Request sent</h2><p>${r.trainer_name ? esc(r.trainer_name) + ' has your request. Once they accept, you will see the UPI payment details in My bookings.' : 'We will match you with a trainer and get back to you.'}</p>
+    ${r.trainer_phone ? `<p><a href="${wa(r.trainer_phone, 'Hi, I just sent a booking request on MyPerCo.')}" target="_blank" rel="noopener">Say hi on WhatsApp</a></p>` : ''}
+    <p><button class="p" onclick="$('#dlg').close();go('mine')">See my bookings</button></p>`;
+  };
+}
 
 let T = [], creds = {};
 const views = { find: vFind, mine: vMine };
@@ -78,19 +100,14 @@ function book(id) {
   <label for="bs">Preferred days and times</label><textarea id="bs" rows="2" placeholder="Weekdays 6–7 am"></textarea>
   <div class="grid"><div><label for="bn">Your name</label><input id="bn" class="w"></div><div><label for="bp">WhatsApp number</label><input id="bp" inputmode="tel" class="w"></div></div>
   <label for="be">Email (for confirmations)</label><input id="be" type="email" class="w">
-  <label for="bo">Goals or health notes for your trainer</label><textarea id="bo" rows="2"></textarea>
+  <label for="bo">Your goals</label><textarea id="bo" rows="2"></textarea>
   <p class="note">${policy()}</p>
-  <label style="font-weight:400"><input type="checkbox" id="bw"> I have read and accept the <a href="#" onclick="showWaiver();return false">waiver</a></label>
-  <p style="display:flex;gap:10px;margin-top:18px"><button class="p" type="submit">Send request</button><button class="s" type="button" onclick="$('#dlg').close()">Cancel</button></p></form>`;
+  <p style="display:flex;gap:10px;margin-top:18px"><button class="p" type="submit">Next: health waiver</button><button class="s" type="button" onclick="$('#dlg').close()">Cancel</button></p></form>`;
   $('#dlg').showModal();
   document.querySelectorAll('input[name=bt]').forEach(r => r.onchange = () => $('#pn').hidden = r.value !== 'monthly' || !r.checked);
-  $('#bf').onsubmit = async e => {
+  $('#bf').onsubmit = e => {
     e.preventDefault();
-    const r = await api('createBooking', { trainer_id: id, type: document.querySelector('input[name=bt]:checked').value, format: val('bfm'), location_mode: val('bl'), area: val('ba'), start_at: val('bd'), slots: val('bs'), client_name: val('bn'), client_phone: val('bp'), client_email: val('be'), notes: val('bo'), waiver_ok: $('#bw').checked });
-    creds.cphone = val('bp');
-    $('#dlg').innerHTML = `<h2 style="margin-top:0">Request sent</h2><p>${r.trainer_name ? esc(r.trainer_name) + ' has your request. Once they accept, you will see the UPI payment details in My bookings.' : 'We will match you with a trainer and get back to you.'}</p>
-    ${r.trainer_phone ? `<p><a href="${wa(r.trainer_phone, 'Hi, I just sent a booking request on MyPerCo.')}" target="_blank" rel="noopener">Say hi on WhatsApp</a></p>` : ''}
-    <p><button class="p" onclick="$('#dlg').close();go('mine')">See my bookings</button></p>`;
+    waiverStep(id, { trainer_id: id, type: document.querySelector('input[name=bt]:checked').value, format: val('bfm'), location_mode: val('bl'), area: val('ba'), start_at: val('bd'), slots: val('bs'), client_name: val('bn'), client_phone: val('bp'), client_email: val('be'), notes: val('bo') });
   };
 }
 

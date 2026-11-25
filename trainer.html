@@ -7,11 +7,12 @@
 <title>MyPerCo – trainer portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="shared.css">
 </head>
 <body>
 <header>
-  <div class="logo">MyPerCo<small>trainer portal</small></div>
+  <a class="logo" href="index.html"><img src="img/logo-mark.svg" alt=""><span>MyPerCo<small>trainer portal</small></span></a>
   <nav><a href="index.html">Client site</a></nav>
 </header>
 <main id="view"></main>
@@ -61,8 +62,8 @@ async function dash() {
   $('#td').innerHTML = `<h2>${esc(r.trainer.name)} · <span class="st ${r.trainer.status}">${r.trainer.status}</span> ${r.trainer.count ? '· ★ ' + r.trainer.rating : ''}</h2>` +
     (r.bookings.length ? r.bookings.map(b => `<div class="box"><b>${esc(b.client_name)}</b> · ${planName(b)} · ${esc(b.format)} · ${esc(b.location_mode)} · ${inr(b.price)}
     <p class="meta">${esc(b.area)} · first session ${dt(b.start_at)} · ${esc(b.slots)}${b.notes ? ' · ' + esc(b.notes) : ''}</p>
-    <p class="st ${b.status}">${b.status} <span class="${b.payment_status}">· Payment ${b.payment_status}</span>${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} sessions${b.valid_until ? ' · valid until ' + d0(b.valid_until) : ''}` : ''}</p>
-    ${b.status === 'Requested' ? `<button class="p" onclick="resp('${b.id}',true)">Accept</button> <button class="s d" onclick="resp('${b.id}',false)">Decline</button>` : ''}
+    ${healthHtml(b.waiver)}<p class="st ${b.status}">${b.status} <span class="${b.payment_status}">· Payment ${b.payment_status}</span>${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} sessions${b.valid_until ? ' · valid until ' + d0(b.valid_until) : ''}` : ''}</p>
+    ${b.status === 'Requested' ? `<p class="hl">By accepting you confirm you have reviewed the client's health declaration and will train within safe limits.</p><button class="p" onclick="resp('${b.id}',true)">Accept</button> <button class="s d" onclick="resp('${b.id}',false)">Decline</button>` : ''}
     ${b.status === 'Accepted' ? `<button class="p" onclick="done('${b.id}')">Mark ${b.type === 'monthly' ? 'today’s session' : 'session'} done</button> <a href="${wa(b.client_phone, 'Hi ' + b.client_name + ', this is ' + r.trainer.name + ' from MyPerCo about your booking.')}" target="_blank" rel="noopener">WhatsApp client</a>` : ''}</div>`).join('') : '<p class="empty"><img class="emptyimg" src="img/empty.svg" alt="">No booking requests yet.</p>');
 }
 async function resp(id, accept) { await api('respond', { ...creds, booking_id: id, accept }); dash(); }

@@ -27,3 +27,14 @@ const areas = () => csv(CFG.launch_areas);
 async function loadCfg() { if (API.startsWith('PASTE')) return; try { CFG = { ...CFG, ...(await api('publicConfig')) }; } catch (e) {} }
 
 const avatar = id => 'img/avatar-' + ([...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 5 + 1) + '.svg';
+
+const COND = ['Heart disease or cardiovascular conditions', 'Diabetes', 'Asthma or respiratory conditions', 'Hypertension (high blood pressure)', 'Hypotension (low blood pressure)', 'Joint problems or orthopedic issues'];
+function healthHtml(w) {
+  if (!w || !w.signed_name) return '<p class="hl">No health declaration on file.</p>';
+  const conds = (w.conditions || []).concat(w.other_conditions ? [w.other_conditions] : []);
+  const flag = conds.length || w.meds || w.injuries;
+  return `<details class="${flag ? 'flag' : 'hl'}"><summary>${flag ? '<b>Health flags – review before training</b>' : 'Health declaration (no flags)'}</summary>
+    <p>${conds.length ? '<b>Conditions:</b> ' + esc(conds.join(', ')) + '<br>' : ''}${w.meds ? '<b>Medications:</b> ' + esc(w.meds) + '<br>' : ''}${w.injuries ? '<b>Injuries/surgeries:</b> ' + esc(w.injuries) + '<br>' : ''}
+    Age: ${w.dob ? Math.floor((Date.now() - new Date(w.dob)) / 31557600000) : '—'} · Gender: ${esc(w.gender || '—')} · Fitness ${esc(w.fitness || '—')}/10 · Active ${esc(w.freq || '0')} days/week · Sleep: ${esc(w.sleep || '—')}<br>
+    Experience: ${esc(w.experience || '—')}<br>Diet: ${esc(w.diet || '—')}<br><b>Emergency contact:</b> ${esc(w.emergency)}<br>Signed by ${esc(w.signed_name)} on ${d0(w.signed_at)}</p></details>`;
+}

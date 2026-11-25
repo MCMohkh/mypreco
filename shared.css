@@ -3,7 +3,7 @@
 body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--f)}
 h1,h2,h3,.num,.logo{font-family:Archivo,'Arial Narrow',sans-serif;letter-spacing:-.01em}
 header{background:var(--ink);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center}
-.logo{font-weight:800;font-size:22px;margin-right:auto}.logo small{display:block;font:400 12px var(--f);color:#9aa6b8;letter-spacing:0}
+.logo{font-weight:800;font-size:22px;margin-right:auto;display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;line-height:1.1}.logo img{width:36px;height:36px;display:block}.logo small{display:block;font:400 12px var(--f);color:#9aa6b8;letter-spacing:0}
 nav{display:flex;gap:4px;flex-wrap:wrap}
 nav button{background:none;border:0;color:#b8c2d1;font:600 15px var(--f);padding:8px 12px;cursor:pointer;border-bottom:3px solid transparent}
 nav button[aria-current=true]{color:#fff;border-color:var(--amber)}
@@ -48,3 +48,6 @@ footer{max-width:980px;margin:0 auto;padding:0 20px 40px;color:var(--mute);font-
 .emptyimg{display:block;width:120px;margin:0 0 6px;opacity:.8}
 img.av.sm{width:48px;height:48px;border-radius:8px;vertical-align:middle;margin-right:8px;object-fit:cover}
 @media(max-width:760px){.hero,.steps{grid-template-columns:1fr}.hero img{order:-1}}
+
+.flag{background:#fff1d6;border-left:4px solid var(--amber);padding:8px 12px;margin:8px 0;font-size:14px}.flag b{color:#8a5a00}.hl{font-size:14px;color:var(--mute)}
+.sig{font-family:'Instrument Sans',cursive;font-style:italic}
