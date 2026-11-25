@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MyPerCo – trainer portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<header>
+  <div class="logo">MyPerCo<small>trainer portal</small></div>
+  <nav><a href="index.html">Client site</a></nav>
+</header>
+<main id="view"></main>
+<dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
+<script src="shared.js"></script>
+<script>
+let creds = {};
+/* ---------- Trainers ---------- */
+function vTrainer() {
+  $('#view').innerHTML = `<div class="band"><img src="img/trainer-hero.svg" alt=""></div><h1>For trainers</h1>
+  <div class="box"><h2 style="margin-top:0">Open your dashboard</h2>
+  <input id="tp" inputmode="tel" placeholder="Phone" value="${esc(creds.phone || '')}"> <input id="tn" type="password" inputmode="numeric" maxlength="4" placeholder="4-digit PIN" value="${esc(creds.pin || '')}"> <button class="p" id="tl">Open</button></div>
+  <div id="td"></div>
+  <h2>Apply to join</h2><p class="meta">We manually check your ID, certifications and references before you go live.</p>
+  <form id="af" class="box"><div class="grid">
+  <div><label for="an">Full name</label><input id="an" class="w"></div><div><label for="ap">Phone (WhatsApp)</label><input id="ap" inputmode="tel" class="w"></div>
+  <div><label for="ae">Email</label><input id="ae" type="email" class="w"></div><div><label for="apin">Choose a 4-digit PIN</label><input id="apin" maxlength="4" inputmode="numeric" class="w"></div></div>
+  <label>Areas you cover</label>${checks('aa', areas())}<input id="aao" class="w" placeholder="Other areas (comma separated)">
+  <label for="asp">Specialties (comma separated)</label><input id="asp" class="w" placeholder="Strength, Fat loss, Mobility">
+  <label>Formats</label>${checks('af', FORMATS)}<label>Where you train</label>${checks('al', LOCS)}
+  <div class="grid"><div><label for="ars">Rate per session (₹)</label><input id="ars" inputmode="numeric" class="w"></div><div><label for="arm">Rate per month (₹)</label><input id="arm" inputmode="numeric" class="w"></div></div>
+  <label for="ab">About you</label><textarea id="ab" rows="3"></textarea>
+  <div class="grid"><div><label for="ac">Certification link</label><input id="ac" class="w" placeholder="Drive or website link"></div><div><label for="au">UPI ID for payouts</label><input id="au" class="w"></div></div>
+  <label for="aph">Profile photo</label><input id="aph" type="file" accept="image/*">
+  <p><button class="p" type="submit">Apply</button></p></form>`;
+  $('#tl').onclick = () => { creds.phone = val('tp'); creds.pin = val('tn'); dash(); };
+  $('#af').onsubmit = async e => {
+    e.preventDefault();
+    const f = $('#aph').files[0], b64 = f ? await shrink(f) : '';
+    await api('apply', { name: val('an'), phone: val('ap'), email: val('ae'), pin: val('apin'), areas: picks('aa').concat(csv(val('aao'))).join(','), specialties: val('asp'), formats: picks('af').join(','), locations: picks('al').join(','), rate_single: val('ars'), rate_monthly: val('arm'), bio: val('ab'), cert_link: val('ac'), upi_id: val('au'), photo_b64: b64 });
+    toast('Application sent. You go live once approved.'); e.target.reset();
+  };
+  if (creds.pin) dash();
+}
+function shrink(file) {
+  return new Promise(res => {
+    const img = new Image(); img.onload = () => {
+      const k = Math.min(1, 600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', .8).split(',')[1]);
+    }; img.src = URL.createObjectURL(file);
+  });
+}
+async function dash() {
+  const r = await api('trainerData', creds);
+  $('#td').innerHTML = `<h2>${esc(r.trainer.name)} · <span class="st ${r.trainer.status}">${r.trainer.status}</span> ${r.trainer.count ? '· ★ ' + r.trainer.rating : ''}</h2>` +
+    (r.bookings.length ? r.bookings.map(b => `<div class="box"><b>${esc(b.client_name)}</b> · ${planName(b)} · ${esc(b.format)} · ${esc(b.location_mode)} · ${inr(b.price)}
+    <p class="meta">${esc(b.area)} · first session ${dt(b.start_at)} · ${esc(b.slots)}${b.notes ? ' · ' + esc(b.notes) : ''}</p>
+    <p class="st ${b.status}">${b.status} <span class="${b.payment_status}">· Payment ${b.payment_status}</span>${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} sessions${b.valid_until ? ' · valid until ' + d0(b.valid_until) : ''}` : ''}</p>
+    ${b.status === 'Requested' ? `<button class="p" onclick="resp('${b.id}',true)">Accept</button> <button class="s d" onclick="resp('${b.id}',false)">Decline</button>` : ''}
+    ${b.status === 'Accepted' ? `<button class="p" onclick="done('${b.id}')">Mark ${b.type === 'monthly' ? 'today’s session' : 'session'} done</button> <a href="${wa(b.client_phone, 'Hi ' + b.client_name + ', this is ' + r.trainer.name + ' from MyPerCo about your booking.')}" target="_blank" rel="noopener">WhatsApp client</a>` : ''}</div>`).join('') : '<p class="empty"><img class="emptyimg" src="img/empty.svg" alt="">No booking requests yet.</p>');
+}
+async function resp(id, accept) { await api('respond', { ...creds, booking_id: id, accept }); dash(); }
+async function done(id) { await api('complete', { ...creds, booking_id: id }); dash(); }
+
+loadCfg().then(vTrainer);
+</script>
+</body>
+</html>

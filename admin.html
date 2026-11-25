@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MyPerCo – admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<header>
+  <div class="logo">MyPerCo<small>admin</small></div>
+</header>
+<main id="view"></main>
+<dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
+<script src="shared.js"></script>
+<script>
+let adminPin = '', T = [];
+/* ---------- Admin ---------- */
+function vAdmin() {
+  $('#view').innerHTML = `<h1>Admin</h1><p><input id="ap2" type="password" placeholder="Admin PIN" value="${esc(adminPin)}"> <button class="p" id="ag">Open</button></p><div id="ad"></div>`;
+  $('#ag').onclick = () => { adminPin = val('ap2'); admin(); }; if (adminPin) admin();
+}
+async function admin() {
+  const r = await api('adminData', { admin_pin: adminPin });
+  const live = r.trainers.filter(t => t.status === 'Live'), pend = r.trainers.filter(t => t.status === 'Pending');
+  const stale = b => b.status === 'Requested' && Date.now() - new Date(b.updated) > 864e5;
+  const tn = id => (r.trainers.find(t => t.id === id) || {}).name || '—';
+  const ckBox = t => { const have = String(t.checklist || '').split(','); return `<div class="ck">${r.check.map(c => `<label><input type="checkbox" name="ck${t.id}" value="${c[0]}" ${have.includes(c[0]) ? 'checked' : ''}>${esc(c[1])}${c[2] ? ' *' : ''}</label>`).join('')}</div><p class="meta">* required before going live</p>`; };
+  $('#ad').innerHTML = `<h2>Waiting for approval (${pend.length})</h2>` + (pend.map(t => `<div class="box">
+    <img class="av sm" src="${esc(t.photo_url || avatar(t.id))}" alt="" onerror="this.onerror=null;this.src='${avatar(t.id)}'"><b>${esc(t.name)}</b> · ${esc(t.phone)} · ${esc(t.email)} · UPI ${esc(t.upi_id)}<br>${esc(t.areas)} · ${esc(t.specialties)} · ${inr(t.rate_single)}/session · ${inr(t.rate_monthly)}/month
+    ${t.cert_link ? ` · <a href="${esc(t.cert_link)}" target="_blank" rel="noopener">Certification</a>` : ''}${t.photo_url ? ` · <a href="${esc(t.photo_url)}" target="_blank" rel="noopener">Photo</a>` : ''}
+    <p>${esc(t.bio)}</p><b>Verification checklist</b>${ckBox(t)}
+    <p><button class="s" onclick="saveCk('${t.id}')">Save checklist</button> <button class="p" onclick="adminT('${t.id}','Live','${t.id}')">Approve</button> <button class="s d" onclick="adminT('${t.id}','Rejected')">Reject</button></p></div>`).join('') || '<p class="empty">Nobody waiting.</p>') +
+  `<h2>Live trainers (${live.length})</h2>` + live.map(t => `<div class="box"><img class="av sm" src="${esc(t.photo_url || avatar(t.id))}" alt="" onerror="this.onerror=null;this.src='${avatar(t.id)}'"><b>${esc(t.name)}</b> · ${esc(t.phone)} · ${inr(t.rate_single)} / ${inr(t.rate_monthly)} <span class="meta">(trainer’s own rates)</span><br>
+    Override: <input id="os${t.id}" size="6" placeholder="session" value="${esc(t.override_single)}"> <input id="om${t.id}" size="6" placeholder="month" value="${esc(t.override_monthly)}">
+    <button class="s" onclick="ovr('${t.id}')">Save</button> <button class="s d" onclick="adminT('${t.id}','Paused')">Pause</button>
+    <details><summary>Checklist</summary>${ckBox(t)}<button class="s" onclick="saveCk('${t.id}')">Save checklist</button></details></div>`).join('') +
+  `<h2>Bookings (${r.bookings.length}) · commission ${r.commission_pct}%${r.fee ? ' + ₹' + r.fee + ' fee' : ''}</h2>` + r.bookings.map(b => {
+    const needs = ['Needs assignment', 'Declined'].includes(b.status) || stale(b);
+    return `<div class="box"><b>${esc(b.client_name)}</b> · ${esc(b.client_phone)} · ${planName(b)} ${esc(b.format)} · ${esc(b.location_mode)} · ${esc(b.area)}
+    <p class="meta">First session ${dt(b.start_at)} · Trainer: ${esc(tn(b.trainer_id))} · ${inr(b.price)}${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} used` : ''}${Number(b.commission_amt) ? ` · our cut ${inr(b.commission_amt)} · trainer payout ${inr(b.payout_amt)} (${esc(b.payout_status)})` : ''}</p>
+    <p class="st ${b.status}">${b.status}${stale(b) ? ' · no reply for 24h' : ''} <span class="${b.payment_status}">· Payment ${b.payment_status}</span></p>
+    ${b.payment_status === 'Unpaid' && b.price && !['Cancelled', 'Declined'].includes(b.status) ? `<button class="s" onclick="money('${b.id}','paid')">Mark paid</button> ` : ''}
+    ${b.payment_status === 'Paid' && b.payout_status === 'Pending' && b.status !== 'Cancelled' ? `<button class="s" onclick="money('${b.id}','payout')">Mark trainer paid out</button> ` : ''}
+    ${b.status === 'Cancelled' && b.payment_status === 'Paid' ? `<b>Refund due ${inr(b.refund_amt)}</b> <button class="s" onclick="money('${b.id}','refunded')">Mark refunded</button>` : ''}
+    ${needs ? `<select id="as${b.id}">${live.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select> <button class="p" onclick="assign('${b.id}')">Assign</button> <a href="${wa(b.client_phone, 'Hi ' + b.client_name + ', this is MyPerCo about your trainer request.')}" target="_blank" rel="noopener">WhatsApp client</a>` : ''}</div>`;
+  }).join('');
+}
+async function saveCk(id) { await api('adminChecklist', { admin_pin: adminPin, trainer_id: id, checked: picks('ck' + id) }); toast('Checklist saved'); }
+async function adminT(id, status, ck) { if (ck) await api('adminChecklist', { admin_pin: adminPin, trainer_id: id, checked: picks('ck' + id) }); await api('adminTrainer', { admin_pin: adminPin, trainer_id: id, status }); T = []; admin(); }
+async function ovr(id) { await api('adminTrainer', { admin_pin: adminPin, trainer_id: id, override_single: val('os' + id), override_monthly: val('om' + id) }); T = []; toast('Override saved'); admin(); }
+async function assign(id) { await api('adminAssign', { admin_pin: adminPin, booking_id: id, trainer_id: val('as' + id) }); admin(); }
+async function money(id, op) { await api('adminMoney', { admin_pin: adminPin, booking_id: id, op }); admin(); }
+
+vAdmin();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyPerCo – my personal coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<header>
+  <div class="logo">MyPerCo<small>my personal coach</small></div>
+  <nav id="nav"><button data-v="find">Find a trainer</button><button data-v="mine">My bookings</button><a href="trainer.html">For trainers</a></nav>
+</header>
+<main id="view"></main>
+<dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
+<script src="shared.js"></script>
+<script>
+const WAIVER = `<p><b>MyPerCo client waiver and release (${'DRAFT'} – to be reviewed by a lawyer)</b></p>
+<p><b>1. Health declaration.</b> I confirm I am at least 18, in good health, and have no medical condition that makes training unsafe, or I have told my trainer about it and have medical clearance. I will stop and tell my trainer if I feel pain, dizziness or discomfort.</p>
+<p><b>2. Assumption of risk.</b> I understand exercise carries risk of injury, including strains, falls, equipment-related injury and, rarely, serious medical events. I take part voluntarily and at my own risk.</p>
+<p><b>3. Release.</b> To the fullest extent allowed by law, I release MyPerCo, its operators and the trainer from claims for injury, loss or damage arising from sessions, except where caused by gross negligence or wilful misconduct.</p>
+<p><b>4. Emergency.</b> I allow the trainer to call emergency services and my emergency contact if needed.</p>
+<p><b>5. Trainers are independent.</b> Trainers are independent professionals vetted by MyPerCo, not employees. Sessions at homes, parks or online take place at my own location and risk.</p>
+<p><b>6. Conduct and policies.</b> I will behave respectfully, and I accept the cancellation and package terms shown at booking. My phone number is shared with my trainer only after the booking is accepted.</p>
+<p><b>7. Law.</b> Indian law applies, with courts in Hyderabad.</p>`;
+function showWaiver() { $('#dlg').innerHTML = WAIVER + `<p><button class="p" onclick="$('#dlg').close()">Close</button></p>`; $('#dlg').showModal(); }
+
+let T = [], creds = {};
+const views = { find: vFind, mine: vMine };
+function go(v) {
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === v));
+  views[v]();
+  try { history.replaceState(null, '', '#' + v); } catch (e) {}
+}
+$('#nav').onclick = e => e.target.dataset.v && go(e.target.dataset.v);
+
+/* ---------- Find ---------- */
+async function vFind() {
+  $('#view').innerHTML = `<section class="hero"><div><h1>Your personal coach, a few taps away</h1><p>Verified trainers in Hyderabad for single sessions or monthly plans. At a gym, at home or online.</p><button class="p" onclick="document.getElementById('fa').scrollIntoView({behavior:'smooth'})">Find a trainer</button></div><img src="img/hero.svg" alt="Trainer and client at a workout session"></section>
+  <div class="filters">
+    <select id="fa" aria-label="Area"></select><select id="fs" aria-label="Goal"></select>
+    <select id="ff" aria-label="Format"><option value="">1-on-1 or group</option>${FORMATS.map(x => `<option>${x}</option>`).join('')}</select>
+    <select id="fl" aria-label="Where"><option value="">Anywhere</option>${LOCS.map(x => `<option>${x}</option>`).join('')}</select>
+  </div><div id="list"><p class="empty">Loading trainers…</p></div>
+  <section class="steps"><div><img src="img/step-1.svg" alt=""><b>1. Pick a trainer</b><span>Filter by area, goal, format and where you want to train.</span></div><div><img src="img/step-2.svg" alt=""><b>2. Book a start date</b><span>Single session or a monthly weekday package.</span></div><div><img src="img/step-3.svg" alt=""><b>3. Train and rate</b><span>Pay by UPI, train, then rate your coach.</span></div></section>
+  <div class="box"><b>Not sure who to pick?</b> Tell us what you need and we will match you.
+  <p><button class="p" onclick="book('')">Match me with a trainer</button></p></div>`;
+  if (!T.length) {
+    T = (await api('listTrainers')).trainers;
+  }
+  const opt = (id, label, key) => { const u = [...new Set(T.flatMap(t => csv(t[key])))].sort(); $(id).innerHTML = `<option value="">${label}</option>` + u.map(x => `<option>${esc(x)}</option>`).join(''); };
+  opt('#fa', 'Any area', 'areas'); opt('#fs', 'Any goal', 'specialties');
+  ['fa', 'fs', 'ff', 'fl'].forEach(i => $('#' + i).onchange = list); list();
+}
+function list() {
+  const f = { areas: $('#fa').value, specialties: $('#fs').value, formats: $('#ff').value, locations: $('#fl').value };
+  const r = T.filter(t => Object.keys(f).every(k => !f[k] || csv(t[k]).includes(f[k])));
+  $('#list').innerHTML = r.length ? r.map(t => `<article class="row">
+    <img class="av" src="${esc(t.photo || avatar(t.id))}" alt="${esc(t.name)}" onerror="this.onerror=null;this.src='${avatar(t.id)}'">
+    <div><h3>${esc(t.name)}</h3><p class="meta">${esc(csv(t.specialties).join(', '))} · ${esc(csv(t.areas).join(', '))}</p>
+    <div class="tags">${csv(t.formats).concat(csv(t.locations)).map(x => `<span>${esc(x)}</span>`).join('')}</div>${t.bio ? `<p class="bio">${esc(t.bio)}</p>` : ''}</div>
+    <div class="rates"><div class="num">${inr(t.rate_single)}</div><small>per session</small><div class="num">${inr(t.rate_monthly)}</div><small>per month</small></div>
+    <div><p class="star">${t.count ? '★ ' + t.rating + ' (' + t.count + ')' : 'New'}</p><button class="p" onclick="book('${t.id}')">Book</button></div></article>`).join('')
+    : '<p class="empty"><img class="emptyimg" src="img/empty.svg" alt="">No trainers match these filters yet. Clear a filter or ask us to match you.</p>';
+}
+function book(id) {
+  const t = T.find(x => x.id === id), fm = t ? csv(t.formats) : FORMATS, lc = t ? csv(t.locations) : LOCS;
+  $('#dlg').innerHTML = `<h2 style="margin-top:0">${t ? 'Book ' + esc(t.name) : 'Match me with a trainer'}</h2><form id="bf">
+  <label>Plan</label><div class="chk"><label><input type="radio" name="bt" value="single" checked>Single session${t ? ' · ' + inr(t.rate_single) : ''}</label><label><input type="radio" name="bt" value="monthly">Monthly package${t ? ' · ' + inr(t.rate_monthly) : ''}</label></div>
+  <p class="note" id="pn" hidden>${CFG.monthly_sessions} weekday sessions (Mon–Fri, no public holidays). Unused sessions carry forward for ${CFG.carry_forward_days} days after the package month.</p>
+  <div class="grid"><div><label for="bfm">Format</label><select id="bfm" class="w">${fm.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+  <div><label for="bl">Where</label><select id="bl" class="w">${lc.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+  <div><label for="ba">Your area</label><select id="ba" class="w">${areas().concat('Other').map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+  <div><label for="bd">First session</label><input id="bd" type="datetime-local" class="w"></div></div>
+  <label for="bs">Preferred days and times</label><textarea id="bs" rows="2" placeholder="Weekdays 6–7 am"></textarea>
+  <div class="grid"><div><label for="bn">Your name</label><input id="bn" class="w"></div><div><label for="bp">WhatsApp number</label><input id="bp" inputmode="tel" class="w"></div></div>
+  <label for="be">Email (for confirmations)</label><input id="be" type="email" class="w">
+  <label for="bo">Goals or health notes for your trainer</label><textarea id="bo" rows="2"></textarea>
+  <p class="note">${policy()}</p>
+  <label style="font-weight:400"><input type="checkbox" id="bw"> I have read and accept the <a href="#" onclick="showWaiver();return false">waiver</a></label>
+  <p style="display:flex;gap:10px;margin-top:18px"><button class="p" type="submit">Send request</button><button class="s" type="button" onclick="$('#dlg').close()">Cancel</button></p></form>`;
+  $('#dlg').showModal();
+  document.querySelectorAll('input[name=bt]').forEach(r => r.onchange = () => $('#pn').hidden = r.value !== 'monthly' || !r.checked);
+  $('#bf').onsubmit = async e => {
+    e.preventDefault();
+    const r = await api('createBooking', { trainer_id: id, type: document.querySelector('input[name=bt]:checked').value, format: val('bfm'), location_mode: val('bl'), area: val('ba'), start_at: val('bd'), slots: val('bs'), client_name: val('bn'), client_phone: val('bp'), client_email: val('be'), notes: val('bo'), waiver_ok: $('#bw').checked });
+    creds.cphone = val('bp');
+    $('#dlg').innerHTML = `<h2 style="margin-top:0">Request sent</h2><p>${r.trainer_name ? esc(r.trainer_name) + ' has your request. Once they accept, you will see the UPI payment details in My bookings.' : 'We will match you with a trainer and get back to you.'}</p>
+    ${r.trainer_phone ? `<p><a href="${wa(r.trainer_phone, 'Hi, I just sent a booking request on MyPerCo.')}" target="_blank" rel="noopener">Say hi on WhatsApp</a></p>` : ''}
+    <p><button class="p" onclick="$('#dlg').close();go('mine')">See my bookings</button></p>`;
+  };
+}
+
+/* ---------- My bookings ---------- */
+function vMine() {
+  $('#view').innerHTML = `<h1>My bookings</h1><p>Enter the number you booked with.</p>
+  <p><input id="mp" inputmode="tel" placeholder="WhatsApp number" value="${esc(creds.cphone || '')}"> <button class="p" id="mg">Show bookings</button></p><div id="ml"></div>`;
+  $('#mg').onclick = async () => {
+    creds.cphone = val('mp');
+    const r = (await api('myBookings', { phone: creds.cphone })).bookings;
+    $('#ml').innerHTML = r.length ? r.map(mineCard).join('') : '<p class="empty"><img class="emptyimg" src="img/empty.svg" alt="">No bookings found for this number.</p>';
+  };
+  if (creds.cphone) $('#mg').click();
+}
+function mineCard(b) {
+  const upi = CFG.upi_id ? `upi://pay?pa=${encodeURIComponent(CFG.upi_id)}&pn=MyPerCo&am=${b.price}&cu=INR&tn=${encodeURIComponent('Booking ' + b.id)}` : '';
+  const cancellable = ['Requested', 'Accepted', 'Needs assignment'].includes(b.status) && !Number(b.sessions_used);
+  return `<div class="box"><b>${esc(b.trainer_name || 'Waiting for a trainer match')}</b> · ${planName(b)} · ${esc(b.format)} · ${esc(b.location_mode)}
+    <p class="meta">First session ${dt(b.start_at)} · ${inr(b.price)}${b.type === 'monthly' ? ` · ${b.sessions_used}/${b.sessions_total} sessions used${b.valid_until ? ' · valid until ' + d0(b.valid_until) : ''}` : ''}</p>
+    <p class="st ${b.status}">${b.status} <span class="${b.payment_status}">· Payment ${b.payment_status}</span></p>
+    ${b.status === 'Accepted' && b.payment_status === 'Unpaid' && b.price ? `<div class="note">Pay ${inr(b.price)} by UPI to confirm.
+      ${upi ? `<a href="${upi}">Pay with UPI app</a> · UPI ID: <b>${esc(CFG.upi_id)}</b>` : 'Ask support for the UPI ID.'}
+      ${CFG.support_phone ? ` · <a href="${wa(CFG.support_phone, 'Hi, I paid ' + b.price + ' for booking ' + b.id)}" target="_blank" rel="noopener">I have paid</a>` : ''}</div>` : ''}
+    ${b.trainer_phone && b.status === 'Accepted' ? `<a href="${wa(b.trainer_phone, 'Hi ' + b.trainer_name + ', confirming my MyPerCo booking.')}" target="_blank" rel="noopener">Message ${esc(b.trainer_name)}</a> ` : ''}
+    ${b.status === 'Cancelled' && Number(b.refund_amt) ? `<p class="meta">Refund: ${inr(b.refund_amt)} (${b.payment_status === 'Refunded' ? 'sent' : 'being processed'})</p>` : ''}
+    ${Number(b.sessions_used) >= 1 && !b.rated ? `<p>Rate your trainer: ${[1, 2, 3, 4, 5].map(n => `<button class="s" onclick="rate('${b.id}',${n})" aria-label="${n} stars">${n}★</button>`).join(' ')}</p>` : ''}
+    ${b.rated ? '<p class="meta">Thanks for rating.</p>' : ''}
+    ${cancellable ? `<button class="s d" onclick="cancelAsk('${b.id}')">Cancel booking</button>` : ''}</div>`;
+}
+function cancelAsk(id) {
+  $('#dlg').innerHTML = `<h2 style="margin-top:0">Cancel this booking?</h2><p>${policy()}</p><p><button class="p d" style="background:var(--bad);border-color:var(--bad)" id="cy">Yes, cancel</button> <button class="s" onclick="$('#dlg').close()">Keep it</button></p>`;
+  $('#dlg').showModal();
+  $('#cy').onclick = async () => { const r = await api('cancelBooking', { booking_id: id, phone: creds.cphone }); $('#dlg').close(); toast(r.refund ? 'Cancelled. Refund due: ' + inr(r.refund) : 'Cancelled'); $('#mg').click(); };
+}
+async function rate(id, n) { await api('rate', { booking_id: id, phone: creds.cphone, rating: n }); toast('Thanks for rating'); $('#mg').click(); }
+
+loadCfg().then(() => go(location.hash.slice(1) in views ? location.hash.slice(1) : 'find'));
+</script>
+</body>
+</html>
