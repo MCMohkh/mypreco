@@ -1,5 +1,5 @@
 
-const API = 'PASTE_YOUR_WEB_APP_URL_HERE';
+const API = 'https://script.google.com/macros/s/AKfycbyyxrxbHCw-kHcgkMjLbMLDlMgAc5qbR7RKBf9VMolOk8AdKsEeUH7ihxDIvwvagM8O/exec';
 const FORMATS = ['1-on-1', 'Group'], LOCS = ['Gym/Studio', 'Home/Park', 'Online'];
 let CFG = { launch_areas: 'Banjara Hills,Jubilee Hills,Shaikpet,Manikonda,Kokapet', monthly_sessions: 22, package_days: 30, carry_forward_days: 15, cancel_hours: 72, cancel_fee_pct: 20, upi_id: '', support_phone: '', waiver_version: 'v1-draft' };
 const $ = s => document.querySelector(s);
