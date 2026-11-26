@@ -51,3 +51,5 @@ img.av.sm{width:48px;height:48px;border-radius:8px;vertical-align:middle;margin-
 
 .flag{background:#fff1d6;border-left:4px solid var(--amber);padding:8px 12px;margin:8px 0;font-size:14px}.flag b{color:#8a5a00}.hl{font-size:14px;color:var(--mute)}
 .sig{font-family:'Instrument Sans',cursive;font-style:italic}
+
+.err{color:#b3261e;background:#fdecea;border-radius:6px;padding:10px 12px;font-weight:600;margin:12px 0 0}

@@ -15,13 +15,17 @@ const d0 = s => s ? new Date(s).toLocaleDateString('en-IN', { dateStyle: 'medium
 const planName = b => b.type === 'single' ? 'Single session' : 'Monthly';
 const policy = () => `Cancel at least ${CFG.cancel_hours} hours before your first session and get a refund minus ${CFG.cancel_fee_pct}% (covers payment and admin costs). Later than that, no refund.`;
 let toastT;
-function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 4000); }
+function toast(m) {
+  const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 4000);
+  const d = $('#dlg');  // an open dialog sits above the toast, so show the message inside it too
+  if (d && d.open) { let e = d.querySelector('.err'); if (!e) { e = document.createElement('p'); e.className = 'err'; e.setAttribute('role', 'alert'); d.appendChild(e); } e.textContent = m; e.scrollIntoView({ block: 'nearest' }); }
+}
 async function api(action, d = {}) {
   if (API.startsWith('PASTE')) { toast('Set the API URL in index.html first'); throw new Error('no api'); }
   try {
     const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, ...d }) });
     const j = await r.json(); if (j.error) throw new Error(j.error); return j;
-  } catch (e) { toast(e.message); throw e; }
+  } catch (e) { toast(e.message === 'Please accept the waiver' ? 'The backend is out of date. Paste the latest Code.gs into Apps Script and deploy a new version.' : e.message); throw e; }
 }
 const areas = () => csv(CFG.launch_areas);
 async function loadCfg() { if (API.startsWith('PASTE')) return; try { CFG = { ...CFG, ...(await api('publicConfig')) }; } catch (e) {} }

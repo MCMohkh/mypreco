@@ -42,7 +42,8 @@ function waiverStep(id, base) {
   $('#wf').onsubmit = async e => {
     e.preventDefault();
     const waiver = { dob: val('wd'), gender: val('wg'), emergency: val('we'), conditions: picks('wc'), other_conditions: val('wo'), meds: val('wm'), injuries: val('wi'), freq: val('wf2'), fitness: val('wl'), experience: val('wx'), sleep: val('ws'), diet: val('wt'), signed_name: val('wn'), signed_at: new Date().toISOString(), agree: $('#wa').checked };
-    const r = await api('createBooking', { ...base, waiver });
+    const btn = $('#wf button[type=submit]'); btn.disabled = true; btn.textContent = 'Sending…';
+    let r; try { r = await api('createBooking', { ...base, waiver }); } catch (err) { btn.disabled = false; btn.textContent = 'Agree and send request'; return; }
     creds.cphone = base.client_phone;
     $('#dlg').innerHTML = `<h2 style="margin-top:0">Request sent</h2><p>${r.trainer_name ? esc(r.trainer_name) + ' has your request. Once they accept, you will see the UPI payment details in My bookings.' : 'We will match you with a trainer and get back to you.'}</p>
     ${r.trainer_phone ? `<p><a href="${wa(r.trainer_phone, 'Hi, I just sent a booking request on MyPerCo.')}" target="_blank" rel="noopener">Say hi on WhatsApp</a></p>` : ''}
